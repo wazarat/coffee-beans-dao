@@ -11,3 +11,4 @@ broadcast/
 # Next.js
 frontend/.next/
 frontend/out/
+.vercel

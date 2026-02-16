@@ -9,6 +9,7 @@ import {
   governanceTokenAbi,
   coffeeBeansDAOAbi,
 } from "@/lib/contracts";
+import { WaitlistForm } from "@/components/WaitlistForm";
 
 function StatusBadge({
   proposal,
@@ -124,6 +125,11 @@ export default function Dashboard() {
         <StatCard label="Total Proposals" value={count.toString()} />
       </section>
 
+      {/* Waitlist */}
+      <section>
+        <WaitlistForm />
+      </section>
+
       {/* Proposals list */}
       <section>
         <div className="flex items-center justify-between mb-4">
@@ -137,7 +143,7 @@ export default function Dashboard() {
         </div>
 
         {count === 0 && (
-          <div className="text-center py-16 text-stone-500">
+          <div className="text-center py-12 text-stone-500">
             <p className="text-lg">No proposals yet.</p>
             <p className="text-sm mt-1">
               Be the first to submit a coffee bean order proposal.
