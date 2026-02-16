@@ -1,0 +1,13 @@
+{
+  "name": "coffee-beans-dao",
+  "version": "1.0.0",
+  "description": "DAO with quadratic voting for small businesses to meet coffee bean MOQs",
+  "scripts": {
+    "compile": "forge build",
+    "test": "forge test"
+  },
+  "devDependencies": {},
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}
