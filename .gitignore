@@ -2,4 +2,12 @@ node_modules/
 out/
 cache/
 .env
+.env.local
 *.log
+
+# Foundry
+broadcast/
+
+# Next.js
+frontend/.next/
+frontend/out/
