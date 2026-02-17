@@ -8,7 +8,7 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: process.env.POSTGRES_PRISMA_URL,
-    directUrl: process.env.POSTGRES_URL_NON_POOLING || undefined,
+    url: process.env.POSTGRES_PRISMA_URL!,
+    directUrl: process.env.POSTGRES_URL_NON_POOLING,
   },
 });
