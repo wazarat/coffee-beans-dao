@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth / Users
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  passwordHash  String?
+  walletAddress String?   @unique
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  shippingAddresses ShippingAddress[]
+  bids              Bid[]
+}
+
+model ShippingAddress {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String?
+  fullName  String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  zip       String
+  country   String
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Coffee Bean Catalog
+// ---------------------------------------------------------------------------
+
+model CoffeeBean {
+  id          String   @id @default(cuid())
+  name        String
+  origin      String
+  region      String?
+  process     String?
+  roastLevel  String?
+  flavorNotes String[]
+  description String?
+  imageUrl    String?
+  moqKg       Int
+  pricePerKg  Float
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  orders Order[]
+}
+
+// ---------------------------------------------------------------------------
+// Orders (created from passed proposals)
+// ---------------------------------------------------------------------------
+
+model Order {
+  id               String   @id @default(cuid())
+  proposalId       Int      @unique
+  coffeeBeanId     String
+  coffeeBean       CoffeeBean @relation(fields: [coffeeBeanId], references: [id])
+  targetQuantityKg Int
+  moqKg            Int
+  biddingEndsAt    DateTime
+  status           String   @default("bidding") // bidding | confirmed | failed | fulfilled
+  totalBidKg       Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  bids Bid[]
+}
+
+// ---------------------------------------------------------------------------
+// Bids (user commitments on orders)
+// ---------------------------------------------------------------------------
+
+model Bid {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  minKg      Int
+  maxKg      Int
+  pricePerKg Float
+  status     String   @default("pending") // pending | accepted | rejected | cancelled
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([orderId, userId])
+}

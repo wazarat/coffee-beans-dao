@@ -1,6 +1,8 @@
 "use client";
 
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { formatEther } from "viem";
 import Link from "next/link";
 import {
@@ -10,6 +12,38 @@ import {
   coffeeBeansDAOAbi,
 } from "@/lib/contracts";
 import { WaitlistForm } from "@/components/WaitlistForm";
+
+interface ActiveOrder {
+  id: string;
+  proposalId: number;
+  targetQuantityKg: number;
+  moqKg: number;
+  totalBidKg: number;
+  biddingEndsAt: string;
+  status: string;
+  coffeeBean: {
+    id: string;
+    name: string;
+    origin: string;
+    roastLevel: string | null;
+    pricePerKg: number;
+  };
+  _count: { bids: number };
+}
+
+interface UserBid {
+  id: string;
+  minKg: number;
+  maxKg: number;
+  pricePerKg: number;
+  status: string;
+  order: {
+    id: string;
+    proposalId: number;
+    status: string;
+    coffeeBean: { name: string };
+  };
+}
 
 function StatusBadge({
   proposal,
@@ -64,6 +98,26 @@ function timeRemaining(votingEndsAt: bigint): string {
 
 export default function Dashboard() {
   const { address, isConnected } = useAccount();
+  const { data: session } = useSession();
+
+  const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
+  const [userBids, setUserBids] = useState<UserBid[]>([]);
+
+  useEffect(() => {
+    fetch("/api/orders?status=bidding")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setActiveOrders)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetch("/api/bids/mine")
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setUserBids)
+        .catch(() => {});
+    }
+  }, [session]);
 
   const { data: tokenBalance } = useReadContract({
     address: GOVERNANCE_TOKEN_ADDRESS,
@@ -124,6 +178,118 @@ export default function Dashboard() {
         />
         <StatCard label="Total Proposals" value={count.toString()} />
       </section>
+
+      {/* Active Orders */}
+      {activeOrders.length > 0 && (
+        <section>
+          <h2 className="text-xl font-semibold mb-4">Active Orders</h2>
+          <div className="space-y-3">
+            {activeOrders.map((order) => {
+              const moqPct = Math.min(
+                (order.totalBidKg / order.moqKg) * 100,
+                100
+              );
+              const moqMet = order.totalBidKg >= order.moqKg;
+              return (
+                <Link
+                  key={order.id}
+                  href={`/orders/${order.id}`}
+                  className="block p-4 rounded-lg border border-stone-800 bg-stone-900 hover:border-amber-700/50 hover:bg-stone-900/80 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-mono text-stone-500">
+                          Proposal #{order.proposalId}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded-full ${
+                            moqMet
+                              ? "bg-emerald-900 text-emerald-300 border border-emerald-700"
+                              : "bg-amber-900 text-amber-300 border border-amber-700"
+                          }`}
+                        >
+                          {moqMet ? "MOQ Met" : "Bidding"}
+                        </span>
+                      </div>
+                      <h3 className="font-medium text-stone-100">
+                        {order.coffeeBean.name}
+                      </h3>
+                      <div className="flex gap-4 mt-1 text-xs text-stone-500">
+                        <span>{order.coffeeBean.origin}</span>
+                        <span>
+                          {order.totalBidKg}/{order.moqKg} kg
+                        </span>
+                        <span>{order._count.bids} bids</span>
+                      </div>
+                    </div>
+                    <div className="w-24 shrink-0">
+                      <div className="text-xs text-stone-500 mb-1 text-right">
+                        {moqPct.toFixed(0)}%
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-stone-700 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            moqMet ? "bg-emerald-500" : "bg-amber-500"
+                          }`}
+                          style={{ width: `${moqPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Your Bids */}
+      {session?.user && userBids.length > 0 && (
+        <section>
+          <h2 className="text-xl font-semibold mb-4">Your Bids</h2>
+          <div className="space-y-2">
+            {userBids.slice(0, 5).map((bid) => (
+              <Link
+                key={bid.id}
+                href={`/orders/${bid.order.id}`}
+                className="block p-3 rounded-lg border border-stone-800 bg-stone-900 hover:border-amber-700/50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-stone-200">
+                      {bid.order.coffeeBean.name}
+                    </span>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      {bid.minKg}-{bid.maxKg} kg @ ${bid.pricePerKg.toFixed(2)}
+                      /kg
+                    </p>
+                  </div>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      bid.status === "accepted"
+                        ? "bg-emerald-900 text-emerald-300 border border-emerald-700"
+                        : bid.status === "cancelled"
+                          ? "bg-red-900 text-red-300 border border-red-700"
+                          : "bg-stone-700 text-stone-300 border border-stone-600"
+                    }`}
+                  >
+                    {bid.status}
+                  </span>
+                </div>
+              </Link>
+            ))}
+            {userBids.length > 5 && (
+              <Link
+                href="/profile"
+                className="block text-center text-sm text-amber-500 hover:text-amber-400 py-2"
+              >
+                View all bids in profile &rarr;
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Waitlist */}
       <section>

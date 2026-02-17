@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import {
   useAccount,
   useReadContract,
@@ -13,6 +13,13 @@ import {
   COFFEE_BEANS_DAO_ADDRESS,
   coffeeBeansDAOAbi,
 } from "@/lib/contracts";
+
+interface LinkedOrder {
+  id: string;
+  status: string;
+  totalBidKg: number;
+  moqKg: number;
+}
 
 export default function ProposalPage({
   params,
@@ -65,6 +72,26 @@ export default function ProposalPage({
 
   const { isLoading: execConfirming, isSuccess: execSuccess } =
     useWaitForTransactionReceipt({ hash: execTxHash });
+
+  const [linkedOrder, setLinkedOrder] = useState<LinkedOrder | null>(null);
+
+  useEffect(() => {
+    async function checkOrder() {
+      try {
+        const res = await fetch(`/api/orders?proposalId=${id}`);
+        if (res.ok) {
+          const orders = await res.json();
+          const match = orders.find(
+            (o: { proposalId: number }) => o.proposalId === Number(id)
+          );
+          if (match) setLinkedOrder(match);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    checkOrder();
+  }, [id, execSuccess]);
 
   // Refetch after vote/exec success
   if (voteSuccess || execSuccess) {
@@ -309,6 +336,38 @@ export default function ProposalPage({
               Proposal executed successfully!
             </p>
           )}
+        </div>
+      )}
+
+      {/* Linked order (Phase 2 bidding) */}
+      {linkedOrder && (
+        <div className="rounded-lg border border-emerald-800/50 bg-emerald-900/20 p-5">
+          <h3 className="font-semibold mb-2">Bidding Order</h3>
+          <p className="text-sm text-stone-400 mb-3">
+            This proposal has been executed and a bidding order has been created.
+            Members can now bid to participate in this coffee bean order.
+          </p>
+          <div className="flex items-center justify-between mb-3 text-sm">
+            <span className="text-stone-400">
+              Progress: {linkedOrder.totalBidKg}/{linkedOrder.moqKg} kg
+            </span>
+            <span className="capitalize text-stone-300">{linkedOrder.status}</span>
+          </div>
+          <Link
+            href={`/orders/${linkedOrder.id}`}
+            className="block text-center bg-amber-700 hover:bg-amber-600 text-white font-medium py-2 rounded-md transition-colors"
+          >
+            View Order &amp; Place Bid
+          </Link>
+        </div>
+      )}
+
+      {/* Prompt to create order after passed proposal */}
+      {p.executed && p.passed && !linkedOrder && (
+        <div className="rounded-lg border border-stone-800 bg-stone-900 p-5 text-center">
+          <p className="text-stone-400 text-sm">
+            This proposal passed. A bidding order can now be created for members to claim their share.
+          </p>
         </div>
       )}
     </div>

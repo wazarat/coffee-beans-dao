@@ -1,20 +1,44 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { COFFEE_BEANS_DAO_ADDRESS, coffeeBeansDAOAbi } from "@/lib/contracts";
 
 const SECONDS_PER_DAY = 86400;
 
-export default function NewProposal() {
+export default function NewProposalPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-lg mx-auto text-center py-16 text-stone-500">
+          Loading...
+        </div>
+      }
+    >
+      <NewProposal />
+    </Suspense>
+  );
+}
+
+function NewProposal() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isConnected } = useAccount();
-  const [description, setDescription] = useState("");
-  const [coffeeBeanType, setCoffeeBeanType] = useState("");
-  const [quantityKg, setQuantityKg] = useState("");
-  const [pricePerKg, setPricePerKg] = useState("");
+
+  const prefillBeanName = searchParams.get("beanName") || "";
+  const prefillQuantity = searchParams.get("quantity") || "";
+  const prefillPrice = searchParams.get("price") || "";
+
+  const [description, setDescription] = useState(
+    prefillBeanName
+      ? `Order ${prefillQuantity} kg ${prefillBeanName}`
+      : ""
+  );
+  const [coffeeBeanType, setCoffeeBeanType] = useState(prefillBeanName);
+  const [quantityKg, setQuantityKg] = useState(prefillQuantity);
+  const [pricePerKg, setPricePerKg] = useState(prefillPrice);
   const [votingDays, setVotingDays] = useState("7");
 
   const { writeContract, data: txHash, isPending, error } = useWriteContract();
